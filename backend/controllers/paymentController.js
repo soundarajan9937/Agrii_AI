@@ -1,4 +1,4 @@
-const Payment = require("../models/Payment");
+const Payment = require('../models/payment');
 const Order = require("../models/orderModel");
 const Notification = require("../models/Notification");
 
