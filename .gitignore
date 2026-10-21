@@ -1,0 +1,45 @@
+# Local credentials and environment files
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Local tool and IDE state
+.idea/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+
+# Generated dependencies and build output
+node_modules/
+.dart_tool/
+.pub-cache/
+.pub/
+build/
+.gradle/
+coverage/
+.flutter-plugins-dependencies
+
+# Machine-specific Android and Flutter configuration
+**/local.properties
+
+# Runtime uploads and local databases
+/backend/uploads/
+*.db
+*.sqlite
+*.sqlite3
+
+# Signing keys and certificates
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+
+# Logs and compiled artifacts
+*.log
+*.class
+*.pyc
