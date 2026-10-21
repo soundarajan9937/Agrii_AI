@@ -5,7 +5,7 @@ const router = express.Router();
 
 const {
   getCropRecommendation,
-} = require("../controllers/cropAdvisorController");
+} = require("../controllers/cropAdvisorcontroller");
 
 // ==========================================================
 // POST /api/crop-advisor/recommend
