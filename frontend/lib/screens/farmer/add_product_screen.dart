@@ -282,7 +282,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   const SizedBox(height: 18),
 
                   DropdownButtonFormField<String>(
-                    value: selectedCategory,
+                    initialValue: selectedCategory,
                     decoration: _inputDecoration("Category *"),
                     items: categories.map((String value) {
                       return DropdownMenuItem<String>(
@@ -313,7 +313,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       Expanded(
                         flex: 1,
                         child: DropdownButtonFormField<String>(
-                          value: selectedUnit,
+                          initialValue: selectedUnit,
                           decoration: _inputDecoration("Unit *"),
                           items: units.map((String value) {
                             return DropdownMenuItem<String>(

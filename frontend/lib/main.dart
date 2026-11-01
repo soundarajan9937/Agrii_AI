@@ -27,9 +27,16 @@ class AgriAssistApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
 
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2E7D32)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF059669),
+          primary: const Color(0xFF059669),
+        ),
 
-        scaffoldBackgroundColor: Colors.white,
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+
+        textTheme: ThemeData.light().textTheme.apply(
+          fontFamily: 'Roboto',
+        ),
 
         // ========================================================
         // APP BAR

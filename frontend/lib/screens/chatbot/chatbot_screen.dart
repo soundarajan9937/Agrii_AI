@@ -19,7 +19,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   final List<Map<String, dynamic>> messages = [
     {
       "text":
-          "🌾 Hello! I’m Agrii AI.\n\nHow can I help you with your farming today?",
+          "🌾 Hello! I’m Agrii AI, your multilingual farming assistant.\n\nAsk me anything about crops, fruits, soil health, fertilizers, or pest control in your preferred language!",
       "isUser": false,
     },
   ];
@@ -41,12 +41,12 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   // SEND MESSAGE
   // ==========================================================
 
-  Future<void> sendMessage() async {
+  Future<void> sendMessage([String? customText]) async {
     if (_isLoading) {
       return;
     }
 
-    final String userMessage = _controller.text.trim();
+    final String userMessage = (customText ?? _controller.text).trim();
 
     if (userMessage.isEmpty) {
       return;
@@ -62,7 +62,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       _isLoading = true;
     });
 
-    _controller.clear();
+    if (customText == null) {
+      _controller.clear();
+    }
 
     _scrollToBottom();
 
@@ -167,6 +169,55 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   }
 
   // ==========================================================
+  // QUICK SUGGESTION CHIPS
+  // ==========================================================
+
+  Widget _buildQuickSuggestions() {
+    if (messages.length > 1) {
+      return const SizedBox.shrink();
+    }
+
+    final List<String> suggestions = [
+      "🍎 Fruit nutrition & farming",
+      "🌱 Tomato disease prevention",
+      "🌿 Organic fertilizers guide",
+      "🌾 நெல் சாகுபடி குறிப்புகள்",
+      "💧 ड्रिप सिंचाई के तरीके",
+      "🌽 ಉತ್ತಮ ಬೆಳೆ ಇಳುವರಿ ವಿಧಾನಗಳು",
+    ];
+
+    return Container(
+      height: 42,
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        itemCount: suggestions.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final String s = suggestions[index];
+          return ActionChip(
+            label: Text(
+              s,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFFD84315),
+              ),
+            ),
+            backgroundColor: const Color(0xFFFFF3E0),
+            side: const BorderSide(color: Color(0xFFFFB74D)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            onPressed: _isLoading ? null : () => sendMessage(s),
+          );
+        },
+      ),
+    );
+  }
+
+  // ==========================================================
   // LOADING INDICATOR
   // ==========================================================
 
@@ -198,7 +249,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             ),
             SizedBox(width: 10),
             Text(
-              "Agrii AI is thinking...",
+              "Agrii AI is replying...",
               style: TextStyle(fontSize: 15, color: Colors.black54),
             ),
           ],
@@ -252,6 +303,11 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             ),
 
             // ==================================================
+            // QUICK SUGGESTIONS
+            // ==================================================
+            _buildQuickSuggestions(),
+
+            // ==================================================
             // LOADING
             // ==================================================
             _buildLoading(),
@@ -283,7 +339,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                       },
 
                       decoration: InputDecoration(
-                        hintText: "Ask about farming...",
+                        hintText: "Ask in English, தமிழ், हिन्दी, ಕನ್ನಡ...",
 
                         hintStyle: const TextStyle(color: Colors.grey),
 

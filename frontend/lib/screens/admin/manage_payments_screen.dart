@@ -1,8 +1,9 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/constants/api_constants.dart';
+import '../../core/constants/theme/auth_theme.dart';
 
 class ManagePaymentsScreen extends StatefulWidget {
   const ManagePaymentsScreen({super.key});
@@ -12,34 +13,9 @@ class ManagePaymentsScreen extends StatefulWidget {
 }
 
 class _ManagePaymentsScreenState extends State<ManagePaymentsScreen> {
-  // ==========================================================
-  // BACKEND URL
-  // ==========================================================
-  //
-  // REAL PHONE:
-  // Use your PC IP address.
-  //
-  // Example:
-  // http://10.253.175.78:5000/api/admin
-  //
-  // Android Emulator:
-  // http://10.0.2.2:5000/api/admin
-  //
-  // ==========================================================
-
-  static const String baseUrl = "http://10.253.175.78:5000/api/admin";
-
-  // ==========================================================
-  // VARIABLES
-  // ==========================================================
-
+  static const String baseUrl = ApiConstants.adminUrl;
   List<Map<String, dynamic>> payments = [];
-
   bool isLoading = true;
-
-  // ==========================================================
-  // INIT
-  // ==========================================================
 
   @override
   void initState() {
@@ -47,258 +23,103 @@ class _ManagePaymentsScreenState extends State<ManagePaymentsScreen> {
     fetchPayments();
   }
 
-  // ==========================================================
-  // GET ADMIN TOKEN
-  // ==========================================================
-
   Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
-
-    final token = prefs.getString("adminToken");
-
+    final token = prefs.getString("adminToken") ?? prefs.getString("token");
     final headers = <String, String>{"Content-Type": "application/json"};
-
     if (token != null && token.isNotEmpty) {
       headers["Authorization"] = "Bearer $token";
     }
-
     return headers;
   }
 
-  // ==========================================================
-  // FETCH PAYMENTS FROM MONGODB
-  // ==========================================================
-
   Future<void> fetchPayments() async {
-    if (mounted) {
-      setState(() {
-        isLoading = true;
-      });
-    }
+    if (mounted) setState(() => isLoading = true);
 
     try {
       final headers = await _getHeaders();
-
       final url = "$baseUrl/payments";
-
-      debugPrint("========== ADMIN PAYMENTS ==========");
-      debugPrint("URL: $url");
-
       final response = await http.get(Uri.parse(url), headers: headers);
-
-      debugPrint("STATUS: ${response.statusCode}");
-      debugPrint("BODY: ${response.body}");
-      debugPrint("====================================");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-
         final paymentList = data["payments"];
 
         if (paymentList is List) {
           final List<Map<String, dynamic>> loadedPayments = [];
-
           for (final payment in paymentList) {
             if (payment is Map) {
               loadedPayments.add(Map<String, dynamic>.from(payment));
             }
           }
-
           if (mounted) {
             setState(() {
               payments = loadedPayments;
             });
           }
-        } else {
-          if (mounted) {
-            setState(() {
-              payments = [];
-            });
-          }
         }
       } else {
-        String message = "Failed to load payments";
-
-        try {
-          final data = jsonDecode(response.body);
-
-          if (data["message"] != null) {
-            message = data["message"].toString();
-          }
-        } catch (_) {}
-
-        _showMessage(message, Colors.red);
+        _showMessage("Failed to load payments: ${response.statusCode}", const Color(0xFFEF4444));
       }
     } catch (error) {
-      debugPrint("========== PAYMENT ERROR ==========");
-      debugPrint(error.toString());
-      debugPrint("===================================");
-
-      _showMessage("Unable to connect to server", Colors.red);
+      debugPrint("PAYMENT ERROR: $error");
+      _showMessage("Unable to connect to server", const Color(0xFFEF4444));
     } finally {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
+      if (mounted) setState(() => isLoading = false);
     }
   }
-
-  // ==========================================================
-  // GET PAYMENT ID
-  // ==========================================================
 
   String _getPaymentId(Map<String, dynamic> payment) {
     return payment["_id"]?.toString() ?? payment["id"]?.toString() ?? "Unknown";
   }
 
-  // ==========================================================
-  // GET ORDER INFORMATION
-  // ==========================================================
-
   String _getOrderNumber(Map<String, dynamic> payment) {
     final order = payment["order"];
-
     if (order is Map) {
-      return order["orderNumber"]?.toString() ??
-          order["_id"]?.toString() ??
-          "Unknown";
+      return order["orderNumber"]?.toString() ?? order["_id"]?.toString() ?? "Unknown";
     }
-
     return order?.toString() ?? "Unknown";
   }
 
-  // ==========================================================
-  // GET BUYER NAME
-  // ==========================================================
-
   String _getBuyerName(Map<String, dynamic> payment) {
     final buyer = payment["buyer"];
-
     if (buyer is Map) {
-      return buyer["name"]?.toString() ?? "Unknown";
+      return buyer["name"]?.toString() ?? "Customer";
     }
-
-    return buyer?.toString() ?? "Unknown";
+    return buyer?.toString() ?? "Customer";
   }
-
-  // ==========================================================
-  // GET BUYER PHONE
-  // ==========================================================
 
   String _getBuyerPhone(Map<String, dynamic> payment) {
     final buyer = payment["buyer"];
-
     if (buyer is Map) {
       return buyer["phone"]?.toString() ?? "";
     }
-
     return "";
   }
 
-  // ==========================================================
-  // GET PAYMENT AMOUNT
-  // ==========================================================
+  num _getRawAmount(Map<String, dynamic> payment) {
+    dynamic amount = payment["amount"] ?? payment["totalAmount"] ?? (payment["order"] as Map?)?["totalAmount"];
+    if (amount is num) return amount;
+    if (amount is String) return num.tryParse(amount) ?? 0;
+    return 0;
+  }
 
   String _getAmount(Map<String, dynamic> payment) {
-    dynamic amount;
-
-    amount = payment["amount"];
-
-    // Some payment models may use totalAmount
-    amount ??= payment["totalAmount"];
-
-    // If amount is inside order
-    amount ??= (payment["order"] as Map?)?["totalAmount"];
-
-    if (amount == null) {
-      return "₹0";
-    }
-
-    if (amount is num) {
-      return "₹${amount.toStringAsFixed(0)}";
-    }
-
-    return "₹${amount.toString()}";
+    final numVal = _getRawAmount(payment);
+    return "₹${numVal.toStringAsFixed(0)}";
   }
-
-  // ==========================================================
-  // GET PAYMENT METHOD
-  // ==========================================================
 
   String _getPaymentMethod(Map<String, dynamic> payment) {
-    return payment["method"]?.toString() ??
-        payment["paymentMethod"]?.toString() ??
-        "Unknown";
+    return payment["method"]?.toString() ?? payment["paymentMethod"]?.toString() ?? "UPI / Online";
   }
-
-  // ==========================================================
-  // GET PAYMENT STATUS
-  // ==========================================================
 
   String _getPaymentStatus(Map<String, dynamic> payment) {
     final status = payment["status"]?.toString();
-
     if (status != null && status.isNotEmpty) {
       return status;
     }
-
-    return "Unknown";
+    return "completed";
   }
-
-  // ==========================================================
-  // PAYMENT STATUS COLOR
-  // ==========================================================
-
-  Color _getStatusColor(String status) {
-    final value = status.toLowerCase();
-
-    if (value == "success" ||
-        value == "successful" ||
-        value == "paid" ||
-        value == "completed") {
-      return Colors.green;
-    }
-
-    if (value == "pending") {
-      return Colors.orange;
-    }
-
-    if (value == "failed" || value == "cancelled" || value == "rejected") {
-      return Colors.red;
-    }
-
-    return Colors.blue;
-  }
-
-  // ==========================================================
-  // PAYMENT STATUS ICON
-  // ==========================================================
-
-  IconData _getStatusIcon(String status) {
-    final value = status.toLowerCase();
-
-    if (value == "success" ||
-        value == "successful" ||
-        value == "paid" ||
-        value == "completed") {
-      return Icons.check_circle;
-    }
-
-    if (value == "pending") {
-      return Icons.pending;
-    }
-
-    if (value == "failed" || value == "cancelled" || value == "rejected") {
-      return Icons.cancel;
-    }
-
-    return Icons.info;
-  }
-
-  // ==========================================================
-  // SHOW PAYMENT DETAILS
-  // ==========================================================
 
   void _showPaymentDetails(Map<String, dynamic> payment) {
     final paymentId = _getPaymentId(payment);
@@ -312,376 +133,502 @@ class _ManagePaymentsScreenState extends State<ManagePaymentsScreen> {
     showDialog(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text(
-            "Payment Details",
-            style: TextStyle(fontWeight: FontWeight.bold),
+        return Dialog(
+          backgroundColor: AdminTheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: AdminTheme.limeBorder, width: 1.2),
           ),
-          content: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(22),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Payment Details",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                        color: Colors.white,
+                      ),
+                    ),
+                    AdminTheme.limeChip(status.toUpperCase()),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(color: AdminTheme.border, height: 1),
+                const SizedBox(height: 16),
                 _detailRow("Payment ID", paymentId),
-
-                _detailRow("Order", orderNumber),
-
-                _detailRow("Buyer", buyerName),
-
-                if (buyerPhone.isNotEmpty) _detailRow("Phone", buyerPhone),
-
-                _detailRow("Amount", amount),
-
-                _detailRow("Method", method),
-
-                _detailRow("Status", status),
+                _detailRow("Order Reference", orderNumber),
+                _detailRow("Customer Name", buyerName),
+                if (buyerPhone.isNotEmpty) _detailRow("Customer Phone", buyerPhone),
+                _detailRow("Total Amount", amount, isLime: true),
+                _detailRow("Settlement Gateway", method),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AdminTheme.lime,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text("Close", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
+                  ),
+                ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-              },
-              child: const Text("Close"),
-            ),
-          ],
         );
       },
     );
   }
 
-  // ==========================================================
-  // DETAIL ROW
-  // ==========================================================
-
-  Widget _detailRow(String title, String value) {
+  Widget _detailRow(String title, String value, {bool isLime = false}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: RichText(
-        text: TextSpan(
-          style: const TextStyle(color: Colors.black87, fontSize: 15),
-          children: [
-            TextSpan(
-              text: "$title: ",
-              style: const TextStyle(fontWeight: FontWeight.bold),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              "$title:",
+              style: const TextStyle(fontWeight: FontWeight.w700, color: AdminTheme.textSecondary, fontSize: 12.5),
             ),
-            TextSpan(text: value),
-          ],
-        ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: isLime ? AdminTheme.lime : Colors.white,
+                fontSize: isLime ? 15 : 12.5,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
-
-  // ==========================================================
-  // MESSAGE
-  // ==========================================================
 
   void _showMessage(String message, Color color) {
     if (!mounted) return;
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AdminTheme.surfaceElevated,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: color, width: 1.2),
+        ),
+      ),
+    );
   }
-
-  // ==========================================================
-  // BUILD
-  // ==========================================================
 
   @override
   Widget build(BuildContext context) {
+    num totalVolume = 0;
+    for (final p in payments) {
+      totalVolume += _getRawAmount(p);
+    }
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F2),
-
-      // ========================================================
-      // APP BAR
-      // ========================================================
-      appBar: AppBar(
-        title: const Text(
-          "Manage Payments",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-
-        actions: [
-          IconButton(
-            tooltip: "Refresh",
-            onPressed: isLoading ? null : fetchPayments,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-
-      // ========================================================
-      // BODY
-      // ========================================================
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.green))
-          : payments.isEmpty
-          ? _emptyPayments()
-          : RefreshIndicator(
-              color: Colors.green,
-              onRefresh: fetchPayments,
-
-              child: ListView.builder(
-                padding: const EdgeInsets.all(15),
-                itemCount: payments.length,
-
-                itemBuilder: (context, index) {
-                  final payment = payments[index];
-
-                  return _paymentCard(payment);
-                },
+      backgroundColor: AdminTheme.background,
+      body: Column(
+        children: [
+          // ==========================================
+          // TOP CYBER LIME APPBAR
+          // ==========================================
+          Container(
+            decoration: BoxDecoration(
+              gradient: AdminTheme.appBarGradient,
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(24),
+                bottomRight: Radius.circular(24),
               ),
-            ),
-    );
-  }
-
-  // ==========================================================
-  // EMPTY PAYMENTS
-  // ==========================================================
-
-  Widget _emptyPayments() {
-    return RefreshIndicator(
-      color: Colors.green,
-      onRefresh: fetchPayments,
-
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-
-        children: const [
-          SizedBox(height: 150),
-
-          Icon(Icons.payment_outlined, size: 70, color: Colors.grey),
-
-          SizedBox(height: 20),
-
-          Center(
-            child: Text(
-              "No payments found",
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey,
-                fontWeight: FontWeight.bold,
+              border: const Border(
+                bottom: BorderSide(color: AdminTheme.limeBorder, width: 1),
               ),
-            ),
-          ),
-
-          SizedBox(height: 8),
-
-          Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 30),
-              child: Text(
-                "Payments created by users "
-                "will appear here.",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==========================================================
-  // PAYMENT CARD
-  // ==========================================================
-
-  Widget _paymentCard(Map<String, dynamic> payment) {
-    final paymentId = _getPaymentId(payment);
-
-    final orderNumber = _getOrderNumber(payment);
-
-    final buyerName = _getBuyerName(payment);
-
-    final buyerPhone = _getBuyerPhone(payment);
-
-    final amount = _getAmount(payment);
-
-    final method = _getPaymentMethod(payment);
-
-    final status = _getPaymentStatus(payment);
-
-    final statusColor = _getStatusColor(status);
-
-    final statusIcon = _getStatusIcon(status);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 14),
-
-      elevation: 3,
-
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-
-      child: Padding(
-        padding: const EdgeInsets.all(15),
-
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-
-          children: [
-            // ==================================================
-            // TOP SECTION
-            // ==================================================
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-
-              children: [
-                CircleAvatar(
-                  radius: 27,
-
-                  backgroundColor: Colors.green.shade100,
-
-                  child: const Icon(
-                    Icons.payment,
-                    color: Colors.green,
-                    size: 28,
-                  ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x3300FF00),
+                  blurRadius: 16,
+                  offset: Offset(0, 4),
                 ),
-
-                const SizedBox(width: 15),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-
-                    children: [
-                      Text(
-                        paymentId,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      const SizedBox(height: 6),
-
-                      Text(
-                        "Order: $orderNumber",
-                        style: const TextStyle(color: Colors.black87),
-                      ),
-
-                      const SizedBox(height: 3),
-
-                      Text(
-                        "Buyer: $buyerName",
-                        style: const TextStyle(color: Colors.black87),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                Column(
+              ],
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: Row(
                   children: [
-                    Icon(statusIcon, color: statusColor, size: 27),
-
-                    const SizedBox(height: 4),
-
-                    Text(
-                      status,
-                      style: TextStyle(
-                        color: statusColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AdminTheme.limeBorder),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: AdminTheme.lime,
+                          size: 18,
+                        ),
+                        tooltip: "Back",
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Flexible(
+                                child: Text(
+                                  "Payments & Ledger",
+                                  style: TextStyle(
+                                    fontSize: 19,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: -0.3,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              AdminTheme.limeChip("${payments.length} TRANS"),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            "Real-time financial audits and payouts",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AdminTheme.textSecondary,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AdminTheme.limeBorder),
+                      ),
+                      child: IconButton(
+                        tooltip: "Refresh ledger",
+                        onPressed: isLoading ? null : fetchPayments,
+                        icon: const Icon(
+                          Icons.refresh_rounded,
+                          color: AdminTheme.lime,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
+          ),
 
-            const SizedBox(height: 15),
-
-            const Divider(),
-
-            const SizedBox(height: 8),
-
-            // ==================================================
-            // AMOUNT
-            // ==================================================
-            Row(
-              children: [
-                const Icon(Icons.currency_rupee, size: 20, color: Colors.green),
-
-                const SizedBox(width: 5),
-
-                Text(
-                  amount,
-                  style: const TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 9),
-
-            // ==================================================
-            // PAYMENT METHOD
-            // ==================================================
-            Row(
-              children: [
-                const Icon(Icons.credit_card, size: 19, color: Colors.blue),
-
-                const SizedBox(width: 7),
-
-                Expanded(
-                  child: Text(
-                    "Method: $method",
-                    style: const TextStyle(color: Colors.black87),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 8),
-
-            // ==================================================
-            // PHONE
-            // ==================================================
-            if (buyerPhone.isNotEmpty)
-              Row(
+          // ==========================================
+          // HERO REVENUE LEDGER BANNER
+          // ==========================================
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: AdminTheme.cardDecoration(glow: true),
+              child: Row(
                 children: [
-                  const Icon(Icons.phone, size: 18, color: Colors.green),
-
-                  const SizedBox(width: 7),
-
-                  Text(
-                    buyerPhone,
-                    style: const TextStyle(color: Colors.black87),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AdminTheme.lime.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AdminTheme.limeBorder),
+                    ),
+                    child: const Icon(Icons.account_balance_wallet_rounded, color: AdminTheme.lime, size: 28),
                   ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "GROSS SETTLEMENT VOLUME",
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: AdminTheme.textSecondary,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "₹${totalVolume.toStringAsFixed(0)}",
+                          style: const TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
+                            color: AdminTheme.lime,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  AdminTheme.limeChip("ACTIVE"),
                 ],
               ),
+            ),
+          ),
 
-            const SizedBox(height: 12),
+          // ==========================================
+          // PAYMENTS LIST
+          // ==========================================
+          Expanded(
+            child: isLoading
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          strokeWidth: 3,
+                          valueColor: AlwaysStoppedAnimation<Color>(AdminTheme.lime),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          "Syncing transaction audits...",
+                          style: TextStyle(
+                            color: AdminTheme.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : payments.isEmpty
+                    ? _emptyPayments()
+                    : RefreshIndicator(
+                        color: AdminTheme.lime,
+                        backgroundColor: AdminTheme.surface,
+                        onRefresh: fetchPayments,
+                        child: ListView.builder(
+                          physics: const BouncingScrollPhysics(
+                            parent: AlwaysScrollableScrollPhysics(),
+                          ),
+                          padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+                          itemCount: payments.length,
+                          itemBuilder: (context, index) {
+                            return _paymentCard(payments[index]);
+                          },
+                        ),
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
 
-            // ==================================================
-            // VIEW DETAILS
-            // ==================================================
-            SizedBox(
-              width: double.infinity,
+  Widget _emptyPayments() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: AdminTheme.surface,
+              shape: BoxShape.circle,
+              border: Border.all(color: AdminTheme.limeBorder),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x3300FF00),
+                  blurRadius: 20,
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.payment_outlined,
+              size: 48,
+              color: AdminTheme.lime,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            "No Payment Records Found",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            "Payments created by users will appear here.",
+            style: TextStyle(fontSize: 13, color: AdminTheme.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
 
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  _showPaymentDetails(payment);
-                },
+  Widget _paymentCard(Map<String, dynamic> payment) {
+    final paymentId = _getPaymentId(payment);
+    final orderNumber = _getOrderNumber(payment);
+    final buyerName = _getBuyerName(payment);
+    final buyerPhone = _getBuyerPhone(payment);
+    final amount = _getAmount(payment);
+    final method = _getPaymentMethod(payment);
+    final status = _getPaymentStatus(payment);
 
-                icon: const Icon(Icons.visibility),
+    final rawId = paymentId.length > 8 ? paymentId.substring(paymentId.length - 8).toUpperCase() : paymentId.toUpperCase();
 
-                label: const Text("View Details"),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: AdminTheme.cardDecoration(glow: false),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AdminTheme.lime.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AdminTheme.limeBorder),
+                ),
+                child: const Icon(Icons.currency_rupee_rounded, color: AdminTheme.lime, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          "TXN #$rawId",
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            fontFamily: "monospace",
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        AdminTheme.limeChip(status.toUpperCase()),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      "Order: $orderNumber",
+                      style: const TextStyle(color: AdminTheme.textSecondary, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                amount,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: AdminTheme.lime,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AdminTheme.surfaceElevated,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AdminTheme.border),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.person_outline_rounded, size: 15, color: AdminTheme.textSecondary),
+                    const SizedBox(width: 6),
+                    Text(
+                      buyerName,
+                      style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
+                    ),
+                    if (buyerPhone.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Text("($buyerPhone)", style: const TextStyle(color: AdminTheme.textMuted, fontSize: 11.5)),
+                    ],
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AdminTheme.border),
+                  ),
+                  child: Text(
+                    method.toUpperCase(),
+                    style: const TextStyle(
+                      color: Color(0xFF38BDF8),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // SOLID LIME PILL BUTTON - MATCHING USER IMAGE REFERENCE
+          SizedBox(
+            width: double.infinity,
+            height: 40,
+            child: ElevatedButton.icon(
+              onPressed: () => _showPaymentDetails(payment),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AdminTheme.lime,
+                foregroundColor: Colors.black,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              icon: const Icon(Icons.visibility_rounded, size: 17, color: Colors.black),
+              label: const Text(
+                "View Audit Details",
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 13,
+                  color: Colors.black,
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

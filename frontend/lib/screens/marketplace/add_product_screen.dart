@@ -243,7 +243,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     });
 
     try {
-      final bool success = await apiService.addProduct(
+      final Map<String, dynamic> uploadResult = await apiService.addProduct(
         name: nameController.text.trim(),
         category: categoryController.text.trim(),
         price: priceController.text.trim(),
@@ -262,6 +262,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
         // Product image.
         image: selectedImage,
       );
+
+      final bool success = uploadResult["success"] == true;
 
       if (!mounted) return;
 

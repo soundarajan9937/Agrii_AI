@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../core/constants/theme/auth_theme.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/auth_components.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
-  final String type; // 'User' or 'Farmer'
+  final String type; // 'User' or 'Farmer' or 'Admin'
   const ResetPasswordScreen({super.key, required this.type});
 
   @override
@@ -17,140 +19,211 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   bool isLoading = false;
   bool obscurePassword = true;
 
-  Color get primaryColor => widget.type == 'Farmer' ? const Color(0xFFF57C00) : const Color(0xFF1976D2);
+  RoleThemeConfig get config => RoleThemeConfig.fromKey(widget.type);
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    hintController.dispose();
+    newPasswordController.dispose();
+    super.dispose();
+  }
 
   Future<void> handleReset() async {
     final email = emailController.text.trim();
     final hint = hintController.text.trim();
     final password = newPasswordController.text;
 
-    if (email.isEmpty || hint.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('All fields are required')));
+    if (email.isEmpty) {
+      AuthNotifier.showError(context, 'Please enter your registered email');
+      return;
+    }
+    if (hint.isEmpty) {
+      AuthNotifier.showError(context, 'Please enter your account recovery hint');
+      return;
+    }
+    if (password.isEmpty || password.length < 6) {
+      AuthNotifier.showError(context, 'New password must be at least 6 characters');
       return;
     }
 
     setState(() => isLoading = true);
 
-    final result = await AuthService.resetPassword(
-      email: email,
-      recoveryHint: hint,
-      newPassword: password,
-    );
+    try {
+      final result = await AuthService.resetPassword(
+        email: email,
+        recoveryHint: hint,
+        newPassword: password,
+      );
 
-    setState(() => isLoading = false);
+      if (!mounted) return;
+      setState(() => isLoading = false);
 
-    if (result.success) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message), backgroundColor: Colors.green));
-      Navigator.pop(context);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message), backgroundColor: Colors.red));
+      if (result.success) {
+        AuthNotifier.showSuccess(context, result.message);
+        Navigator.pop(context);
+      } else {
+        AuthNotifier.showError(context, result.message);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => isLoading = false);
+      AuthNotifier.showError(context, 'Reset failed. Check server connectivity.');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212), // Dark theme as per image
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(icon: Icon(Icons.arrow_back_ios, color: primaryColor), onPressed: () => Navigator.pop(context))
-      ),
+      backgroundColor: const Color(0xFFF8FAFC),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(25),
         child: Column(
           children: [
-            const SizedBox(height: 20),
-            // Reset icon matching the theme
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: primaryColor, width: 2),
-              ),
-              child: Icon(Icons.lock_reset, size: 60, color: primaryColor),
+            // Hero Header
+            AuthHeroHeader(
+              config: config,
+              onBack: () => Navigator.pop(context),
             ),
-            const SizedBox(height: 30),
-            Container(
-              padding: const EdgeInsets.all(25),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E),
-                borderRadius: BorderRadius.circular(25),
-                border: Border.all(color: Colors.white10),
-                boxShadow: [
-                  BoxShadow(
-                    color: primaryColor.withAlpha(30),
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                  )
-                ]
-              ),
+
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 30),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "RESET PASSWORD",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2
-                    )
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    "Verify your account using your unique Recover Hint.",
-                    style: TextStyle(color: Colors.white70, fontSize: 13)
-                  ),
-                  const SizedBox(height: 30),
-                  _buildField("Registered Email", Icons.email_outlined, emailController),
-                  const SizedBox(height: 15),
-                  _buildField("Recover Hint", Icons.help_outline, hintController),
-                  const SizedBox(height: 15),
-                  _buildField("New Password", Icons.lock_outline, newPasswordController, isPassword: true),
-                  const SizedBox(height: 40),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: ElevatedButton(
-                      onPressed: isLoading ? null : handleReset,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                        elevation: 5,
+                  // Title & Subtitle
+                  Row(
+                    children: [
+                      const Text(
+                        "Reset Password",
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                          letterSpacing: -0.5,
+                        ),
                       ),
-                      child: isLoading
-                        ? const SizedBox(width: 25, height: 25, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text("RESET PASSWORD", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: config.lightTint,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: config.primaryColor.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          widget.type.toUpperCase(),
+                          style: TextStyle(
+                            color: config.primaryColor,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    "Verify your identity with your registered secret recovery hint to securely reset your account credentials.",
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      color: Color(0xFF64748B),
+                      height: 1.4,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
+
+                  const SizedBox(height: 22),
+
+                  // Form Card
+                  AuthElevatedCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Email
+                        AuthTextField(
+                          controller: emailController,
+                          label: "Registered Email",
+                          hint: "you@example.com",
+                          prefixIcon: Icons.email_outlined,
+                          keyboardType: TextInputType.emailAddress,
+                          config: config,
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        // Recovery Hint
+                        AuthTextField(
+                          controller: hintController,
+                          label: "Secret Recovery Hint",
+                          hint: "e.g. Favorite crop, childhood pet",
+                          prefixIcon: Icons.help_outline_rounded,
+                          config: config,
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        // New Password
+                        AuthTextField(
+                          controller: newPasswordController,
+                          label: "New Password",
+                          hint: "Min. 6 characters",
+                          prefixIcon: Icons.lock_reset_rounded,
+                          isPassword: true,
+                          obscureText: obscurePassword,
+                          onToggleObscure: () {
+                            setState(() => obscurePassword = !obscurePassword);
+                          },
+                          config: config,
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Submit Button
+                        AuthGradientButton(
+                          text: "Update Password",
+                          onPressed: handleReset,
+                          isLoading: isLoading,
+                          config: config,
+                          icon: Icons.check_circle_rounded,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Back to Login link
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(
+                        Icons.arrow_back_rounded,
+                        size: 17,
+                        color: config.primaryColor,
+                      ),
+                      label: Text(
+                        "Back to ${widget.type} Login",
+                        style: TextStyle(
+                          color: config.primaryColor,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
                 ],
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildField(String label, IconData icon, TextEditingController controller, {bool isPassword = false}) {
-    return TextField(
-      controller: controller,
-      obscureText: isPassword && obscurePassword,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        hintText: label,
-        hintStyle: const TextStyle(color: Colors.white38),
-        prefixIcon: Icon(icon, color: primaryColor, size: 20),
-        suffixIcon: isPassword ? IconButton(
-          icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.white24),
-          onPressed: () => setState(() => obscurePassword = !obscurePassword)
-        ) : null,
-        filled: true,
-        fillColor: Colors.white.withAlpha(10),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: primaryColor.withAlpha(150))),
       ),
     );
   }

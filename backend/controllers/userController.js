@@ -52,39 +52,92 @@ const register = async (req, res) => {
     if (!isValidEmail(cleanEmailValue)) return res.status(400).json({ success: false, message: "Invalid email" });
     if (cleanPassword.length < 6) return res.status(400).json({ success: false, message: "Password too short" });
 
-    // Check existing
-    const [existingEmail, existingPhone] = await Promise.all([
-      Promise.any([User.findOne({ email: cleanEmailValue }), Farmer.findOne({ email: cleanEmailValue }), Admin.findOne({ email: cleanEmailValue })]).catch(() => null),
-      Promise.any([User.findOne({ phone: cleanPhone }), Farmer.findOne({ phone: cleanPhone }), Admin.findOne({ phone: cleanPhone })]).catch(() => null),
-    ]);
+    // Check existing accounts across User, Farmer, and Admin
+    const [userWithEmail, farmerWithEmail, adminWithEmail, userWithPhone, farmerWithPhone, adminWithPhone] =
+      await Promise.all([
+        User.findOne({ email: cleanEmailValue }),
+        Farmer.findOne({ email: cleanEmailValue }),
+        Admin.findOne({ email: cleanEmailValue }),
+        User.findOne({ phone: cleanPhone }),
+        Farmer.findOne({ phone: cleanPhone }),
+        Admin.findOne({ phone: cleanPhone }),
+      ]);
 
-    if (existingEmail) return res.status(409).json({ success: false, message: "Email already registered" });
-    if (existingPhone) return res.status(409).json({ success: false, message: "Phone already registered" });
+    const existingEmail = userWithEmail || farmerWithEmail || adminWithEmail;
+    const existingPhone = userWithPhone || farmerWithPhone || adminWithPhone;
+
+    if (existingEmail) {
+      return res.status(409).json({
+        success: false,
+        message: "Email is already registered. Please login or use a different email.",
+      });
+    }
+
+    if (existingPhone) {
+      return res.status(409).json({
+        success: false,
+        message: "Phone number is already registered. Please login or use a different phone number.",
+      });
+    }
 
     const hashedPassword = await bcrypt.hash(cleanPassword, 10);
 
     if (selectedRole === "farmer") {
       if (!cleanString(farmName) || !cleanString(farmLocation)) {
-        return res.status(400).json({ success: false, message: "Farm name and location are required" });
+        return res.status(400).json({
+          success: false,
+          message: "Farm name and location are required for farmer registration",
+        });
       }
 
       const farmer = await Farmer.create({
-        name: cleanName, email: cleanEmailValue, phone: cleanPhone, password: hashedPassword,
-        recoveryHint: cleanHint, role: "farmer", status: "active", farmName: cleanString(farmName), farmLocation: cleanString(farmLocation)
+        name: cleanName,
+        email: cleanEmailValue,
+        phone: cleanPhone,
+        password: hashedPassword,
+        recoveryHint: cleanHint,
+        role: "farmer",
+        status: "active",
+        farmName: cleanString(farmName),
+        farmLocation: cleanString(farmLocation),
       });
 
-      return res.status(201).json({ success: true, message: "Farmer registration successful", user: farmer });
+      return res.status(201).json({
+        success: true,
+        message: "Farmer registration successful! You can now login.",
+        user: farmer,
+      });
     }
 
     const user = await User.create({
-      name: cleanName, email: cleanEmailValue, phone: cleanPhone, password: hashedPassword,
-      recoveryHint: cleanHint, role: "user", status: "active"
+      name: cleanName,
+      email: cleanEmailValue,
+      phone: cleanPhone,
+      password: hashedPassword,
+      recoveryHint: cleanHint,
+      role: "user",
+      status: "active",
     });
 
-    return res.status(201).json({ success: true, message: "User registration successful", user });
+    return res.status(201).json({
+      success: true,
+      message: "User registration successful! You can now login.",
+      user,
+    });
   } catch (error) {
     console.error("REGISTER ERROR:", error);
-    return res.status(500).json({ success: false, message: "Registration failed" });
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || error.keyValue || {})[0] || "Email/Phone";
+      const fieldName = field === "email" ? "Email" : field === "phone" ? "Phone number" : field;
+      return res.status(409).json({
+        success: false,
+        message: `${fieldName} is already registered. Please login.`,
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Registration failed. Please try again.",
+    });
   }
 };
 

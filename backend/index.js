@@ -71,6 +71,12 @@ app.use(
   userRoutes
 );
 
+// AUTH ALIAS (supports both /api/users and /api/auth endpoints)
+app.use(
+  "/api/auth",
+  userRoutes
+);
+
 // PRODUCTS / MARKETPLACE
 app.use(
   "/api/products",

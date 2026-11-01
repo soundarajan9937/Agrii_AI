@@ -4,15 +4,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../core/constants/api_constants.dart';
+
 class ChatbotService {
-  // ==========================================================
-  // AGRII AI BACKEND
-  // ==========================================================
-
-  static const String _baseUrl = "http://10.253.175.78:5000";
-
-  static const String _chatbotUrl = "$_baseUrl/api/chatbot/message";
-
   // ==========================================================
   // SEND MESSAGE
   // ==========================================================
@@ -29,14 +23,14 @@ class ChatbotService {
 
       final response = await http
           .post(
-            Uri.parse(_chatbotUrl),
+            Uri.parse(ApiConstants.chatbotMessageUrl),
             headers: const {
               "Content-Type": "application/json",
               "Accept": "application/json",
             },
             body: jsonEncode({"message": cleanMessage}),
           )
-          .timeout(const Duration(seconds: 50));
+          .timeout(const Duration(seconds: 20));
 
       debugPrint("🌾 Status: ${response.statusCode}");
 

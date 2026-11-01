@@ -1,21 +1,35 @@
 class ApiConstants {
   // ==========================================================
-  // SERVER CONFIGURATION
+  // ENVIRONMENT CONFIGURATION
   // ==========================================================
 
-  // Your computer's current local network IP address.
-  // Updated based on your ipconfig output: 10.116.232.78
-  static const String serverIp = "10.116.232.78";
+  // Set to TRUE when building APK with real Render deployed backend
+  // Set to FALSE when running locally on Wi-Fi (default)
+  static const bool isProduction = false;
 
-  // Node.js backend port
-  static const String port = "5000";
+  // Paste your Render deployed backend URL here (NO trailing slash, NO /api):
+  // Example: "https://agrii-ai.onrender.com"
+  static const String renderUrl = "https://YOUR-RENDER-APP-NAME.onrender.com";
+
+  // Local development settings (your PC's local Wi-Fi IP):
+  static const String localServerIp = "10.116.232.78";
+  static const String localPort = "5000";
+
+  // Base Server URL
+  // Set isProduction to false for local Wi-Fi development (default)
+  // Set isProduction to true only when renderUrl is updated with a real deployed URL
+  static const String serverBaseUrl =
+      isProduction ? renderUrl : "http://$localServerIp:$localPort";
+
+  // Maintained for backward compatibility
+  static const String serverIp = isProduction ? renderUrl : localServerIp;
+  static const String port = isProduction ? "443" : localPort;
 
   // ==========================================================
   // BASE URL
   // ==========================================================
 
-  // http://10.116.232.78:5000/api
-  static const String baseUrl = "http://$serverIp:$port/api";
+  static const String baseUrl = "$serverBaseUrl/api";
 
   // ==========================================================
   // AUTHENTICATION
@@ -77,21 +91,6 @@ class ApiConstants {
   static const String cropUrl = cropAdvisorUrl;
 
   // ==========================================================
-  // DISEASE DETECTION
-  // ==========================================================
-
-  // /api/disease
-  static const String diseaseUrl = "$baseUrl/disease";
-
-  // Gallery:
-  // POST /api/disease/upload
-  static const String diseaseUploadUrl = "$diseaseUrl/upload";
-
-  // Camera Scan:
-  // POST /api/disease/scan
-  static const String diseaseScanUrl = "$diseaseUrl/scan";
-
-  // ==========================================================
   // CHATBOT
   // ==========================================================
 
@@ -112,13 +111,7 @@ class ApiConstants {
   // ==========================================================
 
   // Example:
+  // https://your-render-url.onrender.com/uploads/filename.jpg
   // http://10.116.232.78:5000/uploads/filename.jpg
-  static const String imageBaseUrl = "http://$serverIp:$port/uploads/";
-
-  // ==========================================================
-  // SERVER ROOT
-  // ==========================================================
-
-  // http://10.116.232.78:5000
-  static const String serverBaseUrl = "http://$serverIp:$port";
+  static const String imageBaseUrl = "$serverBaseUrl/uploads/";
 }

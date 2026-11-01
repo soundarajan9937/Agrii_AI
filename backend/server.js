@@ -49,7 +49,7 @@ app.use(
 // STATIC UPLOADS
 // ==========================================================
 //
-// Uploaded disease images can be accessed using:
+// Uploaded images can be accessed using:
 //
 // http://YOUR-IP:5000/uploads/filename.jpg
 //
@@ -110,17 +110,6 @@ const notificationRoutes =
 const cropAdvisorRoutes =
   require("./routes/cropAdvisorRoutes");
 
-// ----------------------------------------------------------
-// DISEASE DETECTION ROUTES
-// ----------------------------------------------------------
-//
-// POST /api/disease/upload
-// POST /api/disease/scan
-//
-// ----------------------------------------------------------
-
-const diseaseRoutes =
-  require("./routes/diseaseRoutes");
 
 // ==========================================================
 // REGISTER API ROUTES
@@ -132,6 +121,11 @@ const diseaseRoutes =
 
 app.use(
   "/api/users",
+  userRoutes
+);
+
+app.use(
+  "/api/auth",
   userRoutes
 );
 
@@ -193,28 +187,6 @@ app.use(
   cropAdvisorRoutes
 );
 
-// ----------------------------------------------------------
-// DISEASE DETECTION
-// ----------------------------------------------------------
-//
-// Gallery:
-//
-// POST /api/disease/upload
-//
-// Camera:
-//
-// POST /api/disease/scan
-//
-// Both expect:
-//
-// image = uploaded image
-//
-// ----------------------------------------------------------
-
-app.use(
-  "/api/disease",
-  diseaseRoutes
-);
 
 // ==========================================================
 // HOME / SERVER HEALTH CHECK
@@ -238,36 +210,6 @@ app.get(
       success: true,
       message:
         "🌱 Agrii AI Crop Advisor API Running",
-    });
-  }
-);
-
-// ==========================================================
-// DISEASE DETECTION HEALTH CHECK
-// ==========================================================
-//
-// GET /api/disease
-//
-// This only checks whether the disease route is connected.
-// It does NOT analyze an image.
-//
-// ==========================================================
-
-app.get(
-  "/api/disease",
-  (req, res) => {
-    return res.status(200).json({
-      success: true,
-      message:
-        "🌿 Agrii AI Disease Detection API Running",
-
-      endpoints: {
-        upload:
-          "POST /api/disease/upload",
-
-        scan:
-          "POST /api/disease/scan",
-      },
     });
   }
 );
@@ -366,7 +308,7 @@ const startServer = async () => {
       );
 
       console.warn(
-        "⚠️ Disease Detection and other Gemini AI features will not work."
+        "⚠️ Gemini AI features will not work."
       );
     } else {
       console.log(
@@ -437,18 +379,6 @@ const startServer = async () => {
 
         console.log(
           `🌱 Crop Advisor: http://localhost:${PORT}/api/crop-advisor`
-        );
-
-        console.log(
-          `🌿 Disease API: http://localhost:${PORT}/api/disease`
-        );
-
-        console.log(
-          `📤 Disease Upload: http://localhost:${PORT}/api/disease/upload`
-        );
-
-        console.log(
-          `📷 Disease Scan: http://localhost:${PORT}/api/disease/scan`
         );
 
         console.log(

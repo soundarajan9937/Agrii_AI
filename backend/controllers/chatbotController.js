@@ -6,11 +6,11 @@ const https = require("https");
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-// Fast model for chatbot
-const GEMINI_MODEL = "gemini-3.5-flash-lite";
+// Fast primary model for chatbot
+const GEMINI_MODEL = "gemini-3.5-flash";
 
 // Fallback model
-const GEMINI_FALLBACK_MODEL = "gemini-3.6-flash";
+const GEMINI_FALLBACK_MODEL = "gemini-3.5-flash-lite";
 
 // ==========================================================
 // WAIT HELPER
@@ -40,6 +40,16 @@ const callGemini = (
       );
     }
 
+    const generationConfig = {
+      maxOutputTokens: 350,
+      temperature: 0.4,
+    };
+
+    // Disable thinking budget on gemini-3.5-flash for immediate (< 2s) response
+    if (model === GEMINI_MODEL) {
+      generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    }
+
     const requestBody = JSON.stringify({
       contents: [
         {
@@ -51,10 +61,7 @@ const callGemini = (
           ],
         },
       ],
-
-      generationConfig: {
-        maxOutputTokens: 500,
-      },
+      generationConfig,
     });
 
     const options = {
@@ -126,150 +133,56 @@ const callGemini = (
                 );
 
               // ==================================================
-              // RATE LIMIT / QUOTA
+              // RATE LIMIT / QUOTA / BUSY (429 or 503)
               // ==================================================
 
               if (
-                response.statusCode === 429
+                response.statusCode === 429 ||
+                response.statusCode === 503
               ) {
                 console.warn(
-                  "⚠️ Gemini 429 rate limit/quota"
+                  `⚠️ Gemini ${response.statusCode} on ${model}`
                 );
 
-                // Retry only temporary rate limits.
-                if (attempt < 2) {
-                  const retryDelay =
-                    1500 *
-                    Math.pow(
-                      2,
-                      attempt
-                    );
-
+                // If primary model failed, immediately try fallback without delay
+                if (model === GEMINI_MODEL) {
                   console.log(
-                    `🔄 Retrying Gemini in ${retryDelay}ms...`
+                    "🔄 Instantly trying fallback model: " + GEMINI_FALLBACK_MODEL
                   );
-
-                  await wait(
-                    retryDelay
-                  );
-
                   try {
-                    const retryResult =
-                      await callGemini(
-                        prompt,
-                        model,
-                        attempt + 1
-                      );
-
-                    return resolve(
-                      retryResult
+                    const fallbackResult = await callGemini(
+                      prompt,
+                      GEMINI_FALLBACK_MODEL,
+                      0
                     );
-                  } catch (
-                    retryError
-                  ) {
-                    return reject(
-                      retryError
-                    );
+                    return resolve(fallbackResult);
+                  } catch (fallbackError) {
+                    return reject(fallbackError);
                   }
                 }
 
-                // ==================================================
-                // FALLBACK MODEL
-                // ==================================================
-
-                if (
-                  model ===
-                  GEMINI_MODEL
-                ) {
-                  console.log(
-                    "🔄 Trying fallback Gemini model..."
-                  );
-
+                if (attempt < 1) {
+                  await wait(500);
                   try {
-                    const fallbackResult =
-                      await callGemini(
-                        prompt,
-                        GEMINI_FALLBACK_MODEL,
-                        0
-                      );
-
-                    return resolve(
-                      fallbackResult
+                    const retryResult = await callGemini(
+                      prompt,
+                      model,
+                      attempt + 1
                     );
-                  } catch (
-                    fallbackError
-                  ) {
-                    return reject(
-                      fallbackError
-                    );
+                    return resolve(retryResult);
+                  } catch (retryError) {
+                    return reject(retryError);
                   }
                 }
 
                 const quotaError =
                   new Error(
-                    "GEMINI_QUOTA_EXCEEDED"
-                  );
-
-                quotaError.code =
-                  "GEMINI_QUOTA_EXCEEDED";
-
-                return reject(
-                  quotaError
-                );
-              }
-
-              // ==================================================
-              // SERVICE UNAVAILABLE
-              // ==================================================
-
-              if (
-                response.statusCode ===
-                503
-              ) {
-                if (attempt < 2) {
-                  const retryDelay =
-                    2000 *
-                    (attempt + 1);
-
-                  console.log(
-                    `🔄 Gemini temporarily unavailable. Retrying in ${retryDelay}ms...`
-                  );
-
-                  await wait(
-                    retryDelay
-                  );
-
-                  try {
-                    const retryResult =
-                      await callGemini(
-                        prompt,
-                        model,
-                        attempt + 1
-                      );
-
-                    return resolve(
-                      retryResult
-                    );
-                  } catch (
-                    retryError
-                  ) {
-                    return reject(
-                      retryError
-                    );
-                  }
-                }
-
-                const serviceError =
-                  new Error(
                     "GEMINI_SERVICE_UNAVAILABLE"
                   );
-
-                serviceError.code =
+                quotaError.code =
                   "GEMINI_SERVICE_UNAVAILABLE";
 
-                return reject(
-                  serviceError
-                );
+                return reject(quotaError);
               }
 
               // ==================================================
@@ -356,7 +269,7 @@ const callGemini = (
     );
 
     request.setTimeout(
-      30000,
+      15000,
       () => {
         request.destroy(
           new Error(
@@ -492,78 +405,50 @@ const sendChatbotMessage =
       );
 
       // ======================================================
-      // AGRII AI PROMPT
+      // AGRII AI PROMPT (STRICT AGRICULTURE-ONLY DOMAIN)
       // ======================================================
 
       const prompt = `
-You are Agrii AI, an agriculture assistant for farmers.
+You are Agrii AI, an intelligent multilingual agricultural AI assistant built specifically and exclusively for agriculture, farming, crops, and farmers.
 
-Your ONLY job is to answer agriculture and farming questions.
+STRICT DOMAIN RULE - ONLY AGRICULTURE QUESTIONS:
+1. You are permitted to answer ONLY questions related to agriculture, farming, horticulture, and farm produce:
+   - Crops, grains, vegetables, fruits (types, farming, soil needs, harvest, seasonal care, nutritional/health benefits of farm produce)
+   - Soil health, preparation, pH, testing
+   - Fertilizers, manures, bio-fertilizers, organic farming, compost, NPK
+   - Plant diseases, pest control, insecticides, fungicides, weed management
+   - Irrigation systems (drip, sprinkler), water conservation for crops
+   - Farm tools, machinery, modern agricultural technology
+   - Livestock, dairy farming, cattle, poultry, goat farming
+   - Crop storage, mandi/market produce handling, Agrii marketplace app services
+2. Greetings & Identity:
+   - If the user says a greeting (e.g. "hi", "hello", "வணக்கம்", "नमस्ते", "ನಮಸ್ಕಾರ") or asks "who are you", introduce yourself as Agrii AI, your farming assistant, and invite them to ask their agriculture or farming question.
+3. Off-Topic & Non-Agriculture Questions (STRICT REFUSAL):
+   - If the user asks ANY question that is NOT related to agriculture or farming (such as movies, cinema, celebrities, sports, cricket, politics, computer coding, general school homework, games, vehicles unrelated to farming, or general gossip):
+   - You MUST STRICTLY REFUSE to answer the off-topic question.
+   - Inform the user that you are Agrii AI and only answer agriculture and farming questions, and politely invite them to ask an agricultural question.
+   - DO NOT answer the non-agri question even partially.
 
-AGRICULTURE TOPICS INCLUDE:
-farming, crops, seeds, sowing, soil, fertilizer,
-manure, irrigation, water management, pests,
-plant diseases, weeds, crop rotation, harvesting,
-farm machinery, agricultural technology,
-farm management, agricultural markets,
-crop yield and general farming profitability.
+STRICT MULTILINGUAL MATCHING:
+1. Automatically detect the exact language of the user's message.
+2. ALWAYS respond ONLY in the user's exact language (both for agricultural answers and for refusals):
+   - If user asks in English -> Respond 100% in English. (NEVER switch to Kannada, Tamil, or Hindi).
+     Example refusal in English: "I am Agrii AI, your agriculture assistant. I can only assist with agriculture, crops, and farming-related questions. Please ask a farming question."
+   - If user asks in Tamil (தமிழ்) -> Respond 100% in Tamil.
+     Example refusal in Tamil: "நான் அக்ரி AI, உங்கள் விவசாய உதவியாளர். என்னால் விவசாயம் மற்றும் பயிர் தொடர்பான கேள்விகளுக்கு மட்டுமே பதிலளிக்க முடியும். தயவுசெய்து விவசாயம் சார்ந்த கேள்விகளைக் கேளுங்கள்."
+   - If user asks in Kannada (ಕನ್ನಡ) -> Respond 100% in Kannada.
+     Example refusal in Kannada: "ನಾನು ಅಗ್ರಿ AI, ನಿಮ್ಮ ಕೃಷಿ ಸಹಾಯಕ. ನಾನು ಕೃಷಿ, ಬೆಳೆಗಳು ಮತ್ತು ತೋಟಗಾರಿಕೆಗೆ ಸಂಬಂಧಿಸಿದ ಪ್ರಶ್ನೆಗಳಿಗೆ ಮಾತ್ರ ಉತ್ತರಿಸಬಲ್ಲೆ. ದಯವಿಟ್ಟು ಕೃಷಿ ಸಂಬಂಧಿತ ಪ್ರಶ್ನೆಯನ್ನು ಕೇಳಿ."
+   - If user asks in Hindi (हिन्दी) -> Respond 100% in Hindi.
+     Example refusal in Hindi: "मैं अग्री एआई (Agrii AI) हूँ, आपका कृषि सहायक। मैं केवल कृषि, फसलों और खेती से संबंधित प्रश्नों के उत्तर दे सकता हूँ। कृपया खेती से संबंधित प्रश्न पूछें।"
+   - If user asks in Telugu (తెలుగు) -> Respond 100% in Telugu.
+   - If user asks in Malayalam (മലയാളം) -> Respond 100% in Malayalam.
+   - If user writes in transliterated script (e.g. Tanglish/Hinglish), reply in the same natural conversational style.
 
-IMPORTANT:
+RESPONSE STYLE:
+- Fast, direct, concise (2 to 5 sentences or short bullet points).
+- Plain text only. NO markdown bold symbols (**), NO headings (#), NO backticks (\`).
 
-1. First determine whether the farmer's question
-is related to agriculture.
-
-2. If the question IS agriculture-related:
-answer it helpfully and practically.
-
-3. If the question is NOT agriculture-related:
-DO NOT answer that question.
-
-Instead reply only with a short message asking
-the farmer to ask an Agrii related agriculture question.
-
-4. Automatically detect the language of the farmer.
-
-5. ALWAYS answer in the SAME LANGUAGE used by
-the farmer.
-
-Tamil question -> Tamil answer.
-Hindi question -> Hindi answer.
-English question -> English answer.
-Telugu question -> Telugu answer.
-Kannada question -> Kannada answer.
-Malayalam question -> Malayalam answer.
-Other languages -> use the same language when possible.
-
-6. Do not translate the farmer's question into
-English before answering.
-
-7. Use simple farmer-friendly language.
-
-8. Do not guarantee crop yield or profit.
-
-9. Do not invent exact market prices.
-
-10. If advice depends on soil testing, location,
-weather, rainfall, crop variety or local conditions,
-clearly mention that it may vary.
-
-11. Return ONLY normal plain text.
-
-12. DO NOT use:
-asterisks
-markdown
-hashtags
-backticks
-special formatting
-tables
-bold text
-headings using symbols
-
-13. Keep the answer concise and useful.
-
-FARMER QUESTION:
-
+USER MESSAGE:
 ${userMessage}
 `;
 

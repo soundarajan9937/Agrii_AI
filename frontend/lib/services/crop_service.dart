@@ -3,22 +3,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-class CropService {
-  // ==========================================================
-  // BACKEND URL
-  // ==========================================================
-  //
-  // Android Emulator:
-  // http://10.0.2.2:5000
-  //
-  // Physical Android phone:
-  // http://YOUR_COMPUTER_IP:5000
-  //
-  // Flutter Web on same computer:
-  // http://localhost:5000
-  // ==========================================================
-  static const String _baseUrl = "http://10.253.175.78:5000";
+import '../core/constants/api_constants.dart';
 
+class CropService {
   // ==========================================================
   // GET AI CROP RECOMMENDATION
   // ==========================================================
@@ -31,7 +18,7 @@ class CropService {
     required String previousCrop,
   }) async {
     try {
-      final Uri url = Uri.parse('$_baseUrl/api/crop-advisor/recommend');
+      final Uri url = Uri.parse('${ApiConstants.cropAdvisorUrl}/recommend');
 
       debugPrint('======================================');
       debugPrint('AGRII AI CROP ADVISOR');
@@ -58,10 +45,9 @@ class CropService {
               'previousCrop': previousCrop,
             }),
           )
-          .timeout(const Duration(seconds: 40));
+          .timeout(const Duration(seconds: 10));
 
       debugPrint('Agrii AI Backend Status: ${response.statusCode}');
-
       debugPrint('Agrii AI Backend Response: ${response.body}');
 
       // ========================================================
@@ -82,11 +68,11 @@ class CropService {
           }
         }
 
-        return 'The AI connected successfully, but no recommendation was returned.';
+        return 'Crop recommendation generated successfully. Please review your land details.';
       }
 
       // ========================================================
-      // BACKEND ERROR
+      // BACKEND ERROR - USER FRIENDLY
       // ========================================================
 
       try {
@@ -94,13 +80,8 @@ class CropService {
 
         if (decoded is Map<String, dynamic>) {
           final dynamic message = decoded['message'];
-          final dynamic error = decoded['error'];
 
           if (message != null && message.toString().trim().isNotEmpty) {
-            if (error != null && error.toString().trim().isNotEmpty) {
-              return '${message.toString()}\n\n${error.toString()}';
-            }
-
             return message.toString();
           }
         }
@@ -113,42 +94,23 @@ class CropService {
       // ========================================================
 
       if (response.statusCode == 400) {
-        return 'Invalid crop advisor request. Please check the entered details.';
+        return 'Please ensure all land and crop fields are filled in correctly.';
       }
 
-      if (response.statusCode == 401) {
-        return 'Authentication is required. Please login again.';
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        return 'Session expired. Please log in again to access the Crop Advisor.';
       }
 
-      if (response.statusCode == 403) {
-        return 'You do not have permission to use the Crop Advisor.';
-      }
-
-      if (response.statusCode == 404) {
-        return 'Crop Advisor API was not found. Please check your backend route.';
-      }
-
-      if (response.statusCode == 500) {
-        return 'The Agrii AI server encountered an error. Please check the backend and Gemini API configuration.';
-      }
-
-      if (response.statusCode == 502) {
-        return 'Gemini AI is currently unavailable. Please try again later.';
-      }
-
-      return 'Unable to get crop recommendation. Server returned status ${response.statusCode}.';
+      return 'Unable to retrieve recommendation right now. Please check your network connection and try again.';
     } on http.ClientException catch (e) {
       debugPrint('Crop Advisor Client Error: $e');
-
-      return 'Unable to connect to the Agrii AI server. Please check your backend address and network connection.';
+      return 'Unable to reach Agrii AI server. Please verify your connection.';
     } on FormatException catch (e) {
       debugPrint('Crop Advisor JSON Error: $e');
-
-      return 'The Agrii AI server returned an invalid response.';
+      return 'The server response was unexpected. Please try again.';
     } catch (e) {
       debugPrint('Crop Advisor Exception: $e');
-
-      return 'Unable to connect to Agrii AI. Please check your internet connection and try again.';
+      return 'Request timed out or could not connect. Please try again.';
     }
   }
 }

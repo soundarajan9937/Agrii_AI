@@ -195,14 +195,30 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     final String currentStatus = status.toLowerCase();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F7FD),
+      backgroundColor: const Color(0xFFF8FAFC),
 
       // ========================================================
       // APP BAR
       // ========================================================
       appBar: AppBar(
-        title: const Text("Track Order"),
-        backgroundColor: const Color(0xFF1976D2),
+        title: const Text(
+          "Track Order",
+          style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.2),
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFF0F766E), // Deep Teal
+                Color(0xFF059669), // Emerald
+                Color(0xFF0284C7), // Sky Azure
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        elevation: 0,
         foregroundColor: Colors.white,
         centerTitle: true,
       ),
@@ -211,179 +227,215 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
       // BODY
       // ========================================================
       body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.all(16),
-
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ==================================================
-            // DELIVERY STATUS
+            // DELIVERY STATUS CARD
             // ==================================================
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.1),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                    blurRadius: 14,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 25,
-                  horizontal: 20,
-                ),
-                child: Column(
-                  children: [
-                    const Text(
-                      "Delivery Status",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: const [
+                          Icon(Icons.local_shipping_outlined, size: 18, color: Color(0xFF059669)),
+                          SizedBox(width: 8),
+                          Text(
+                            "Delivery Progress",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-
-                    const SizedBox(height: 25),
-
-                    _buildFlipkartTimeline(currentStatus),
-                  ],
-                ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFECFDF5),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFA7F3D0)),
+                        ),
+                        child: Text(
+                          status.toUpperCase(),
+                          style: const TextStyle(
+                            color: Color(0xFF059669),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  _buildFlipkartTimeline(currentStatus),
+                ],
               ),
             ),
 
-            const SizedBox(height: 15),
+            const SizedBox(height: 16),
 
             // ==================================================
-            // ORDER INFORMATION
+            // ORDER INFORMATION CARD
             // ==================================================
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.1),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                    blurRadius: 14,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ==========================================
-                    // PRODUCT IMAGE + NAME + AMOUNT
-                    // ==========================================
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 90,
-                          height: 90,
-
-                          decoration: BoxDecoration(
-                            color: const Color(
-                              0xFF1976D2,
-                            ).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-
-                          clipBehavior: Clip.antiAlias,
-
-                          child: imageUrl.isNotEmpty
-                              ? Image.network(
-                                  imageUrl,
-                                  fit: BoxFit.cover,
-
-                                  errorBuilder: (context, error, stackTrace) {
-                                    debugPrint("PRODUCT IMAGE ERROR: $error");
-
-                                    return const Icon(
-                                      Icons.inventory_2,
-                                      color: Color(0xFF1976D2),
-                                      size: 45,
-                                    );
-                                  },
-
-                                  loadingBuilder:
-                                      (context, child, loadingProgress) {
-                                        if (loadingProgress == null) {
-                                          return child;
-                                        }
-
-                                        return const Center(
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Color(0xFF1976D2),
-                                          ),
-                                        );
-                                      },
-                                )
-                              : const Icon(
-                                  Icons.inventory_2,
-                                  color: Color(0xFF1976D2),
-                                  size: 45,
-                                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // PRODUCT IMAGE + INFO ROW
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
-
-                        const SizedBox(width: 15),
-
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                productName,
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
+                        clipBehavior: Clip.antiAlias,
+                        child: imageUrl.isNotEmpty
+                            ? Image.network(
+                                imageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => const Icon(
+                                  Icons.eco_rounded,
+                                  color: Color(0xFF059669),
+                                  size: 38,
                                 ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return const Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Color(0xFF059669),
+                                    ),
+                                  );
+                                },
+                              )
+                            : const Icon(
+                                Icons.eco_rounded,
+                                color: Color(0xFF059669),
+                                size: 38,
                               ),
-
-                              const SizedBox(height: 5),
-
-                              Text(
-                                "Amount: ₹${amount.toStringAsFixed(0)}",
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1976D2),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const Divider(height: 35),
-
-                    // ==========================================
-                    // ORDER DETAILS
-                    // ==========================================
-                    const Text(
-                      "Order Details",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
                       ),
-                    ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              productName,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -0.3,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              "Amount: ₹${amount.toStringAsFixed(0)}",
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF059669),
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              "Quantity: $quantity",
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF64748B),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
 
-                    const SizedBox(height: 15),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Divider(color: Color(0xFFE2E8F0)),
+                  ),
 
-                    detailRow(Icons.person, "Seller", sellerName),
+                  // DETAILS SUBSECTION
+                  Row(
+                    children: const [
+                      Icon(Icons.badge_outlined, size: 16, color: Color(0xFF059669)),
+                      SizedBox(width: 8),
+                      Text(
+                        "Order Information",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
 
-                    detailRow(Icons.phone, "Phone", phone),
-
-                    detailRow(Icons.location_on, "Address", address),
-
-                    detailRow(Icons.scale, "Quantity", quantity),
-
-                    detailRow(
-                      Icons.receipt_long,
-                      "Order ID",
-                      widget.order["_id"],
-                    ),
-                  ],
-                ),
+                  detailRow(Icons.person_outline_rounded, "Farmer / Seller", sellerName),
+                  detailRow(Icons.phone_outlined, "Contact Phone", phone),
+                  detailRow(Icons.location_on_outlined, "Delivery Address", address),
+                  detailRow(Icons.scale_rounded, "Quantity Ordered", quantity),
+                  detailRow(
+                    Icons.receipt_long_rounded,
+                    "Order ID",
+                    widget.order["_id"] != null
+                        ? widget.order["_id"].toString().length > 14
+                            ? "${widget.order["_id"].toString().substring(0, 14)}..."
+                            : widget.order["_id"].toString()
+                        : "N/A",
+                  ),
+                ],
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
             // ==================================================
             // CANCEL BUTTON
@@ -393,31 +445,29 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
                 currentStatus != "rejected")
               SizedBox(
                 width: double.infinity,
-                height: 55,
-
+                height: 52,
                 child: OutlinedButton.icon(
                   onPressed: cancelOrder,
-
-                  icon: const Icon(Icons.cancel, color: Colors.red),
-
+                  icon: const Icon(Icons.cancel_outlined, color: Color(0xFFDC2626), size: 20),
                   label: const Text(
-                    "Cancel Order",
+                    "Cancel This Order",
                     style: TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFDC2626),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.red),
+                    side: const BorderSide(color: Color(0xFFFECACA), width: 1.3),
+                    backgroundColor: const Color(0xFFFEF2F2),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                 ),
               ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -435,55 +485,57 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
       return "";
     }
 
-    // Backend already returned a complete URL.
     if (value.startsWith("http://") || value.startsWith("https://")) {
       return value;
     }
 
-    // Backend returned only the image filename.
     return "${ApiConstants.imageBaseUrl}$value";
   }
 
   // ============================================================
-  // FLIPKART STYLE TIMELINE
+  // MODERN ORDER TIMELINE
   // ============================================================
 
   Widget _buildFlipkartTimeline(String currentStatus) {
     final List<Map<String, String>> stages = [
-      {"id": "pending", "label": "Ordered"},
-      {"id": "accepted", "label": "Packed"},
-      {"id": "processing", "label": "Shipped"},
-      {"id": "delivered", "label": "Delivered"},
+      {"id": "pending", "label": "Order Confirmed", "desc": "Producer notified of fresh order"},
+      {"id": "accepted", "label": "Produce Packed", "desc": "Crops gathered & prepared"},
+      {"id": "processing", "label": "Dispatched / On Way", "desc": "In transit to your location"},
+      {"id": "delivered", "label": "Delivered to Doorstep", "desc": "Produce handed over"},
     ];
 
-    // ==========================================================
-    // CANCELLED / REJECTED
-    // ==========================================================
-
     if (currentStatus == "cancelled" || currentStatus == "rejected") {
-      return Center(
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        alignment: Alignment.center,
         child: Column(
           children: [
-            const Icon(Icons.cancel, color: Colors.red, size: 50),
-
-            const SizedBox(height: 10),
-
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFEF2F2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.cancel_outlined, color: Color(0xFFDC2626), size: 36),
+            ),
+            const SizedBox(height: 12),
             Text(
               "Order ${currentStatus.toUpperCase()}",
               style: const TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
+                color: Color(0xFFDC2626),
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
               ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              currentStatus == "cancelled" ? "Cancelled by buyer" : "Rejected by seller",
+              style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
             ),
           ],
         ),
       );
     }
-
-    // ==========================================================
-    // ACTIVE STAGE
-    // ==========================================================
 
     int activeIndex = 0;
 
@@ -501,76 +553,86 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
       activeIndex = 3;
     }
 
-    // ==========================================================
-    // TIMELINE
-    // ==========================================================
-
     return Column(
       children: List.generate(stages.length, (index) {
         final bool isCompleted = index <= activeIndex;
-
+        final bool isCurrent = index == activeIndex;
         final bool isLast = index == stages.length - 1;
 
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ================================================
-            // CIRCLE + LINE
-            // ================================================
             Column(
               children: [
                 Container(
-                  width: 24,
-                  height: 24,
-
+                  width: 26,
+                  height: 26,
                   decoration: BoxDecoration(
-                    color: isCompleted
-                        ? const Color(0xFF1976D2)
-                        : Colors.grey.shade300,
+                    color: isCompleted ? const Color(0xFF059669) : const Color(0xFFF1F5F9),
                     shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isCompleted ? const Color(0xFF059669) : const Color(0xFFCBD5E1),
+                      width: 2,
+                    ),
+                    boxShadow: isCurrent
+                        ? [
+                            BoxShadow(
+                              color: const Color(0xFF059669).withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
                   ),
-
-                  child: isCompleted
-                      ? const Icon(Icons.check, size: 16, color: Colors.white)
-                      : null,
+                  child: Center(
+                    child: isCompleted
+                        ? const Icon(Icons.check, size: 14, color: Colors.white)
+                        : Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(0xFFCBD5E1),
+                            ),
+                          ),
+                  ),
                 ),
-
                 if (!isLast)
                   Container(
-                    width: 2,
-                    height: 50,
-                    color: isCompleted
-                        ? const Color(0xFF1976D2)
-                        : Colors.grey.shade300,
+                    width: 2.5,
+                    height: 44,
+                    color: index < activeIndex
+                        ? const Color(0xFF059669)
+                        : const Color(0xFFE2E8F0),
                   ),
               ],
             ),
-
-            const SizedBox(width: 20),
-
-            // ================================================
-            // STAGE TEXT
-            // ================================================
+            const SizedBox(width: 14),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    stages[index]["label"]!,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isCompleted ? Colors.black : Colors.grey,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2, bottom: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      stages[index]["label"]!,
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: isCompleted ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+                      ),
                     ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  Text(
-                    isCompleted ? "Status updated" : "Awaiting update",
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      stages[index]["desc"]!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isCompleted ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -585,32 +647,31 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
 
   Widget detailRow(IconData icon, String title, dynamic value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 15),
-
+      padding: const EdgeInsets.only(bottom: 11),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: const Color(0xFF1976D2)),
-
-          const SizedBox(width: 12),
-
+          Icon(icon, size: 16, color: const Color(0xFF059669)),
+          const SizedBox(width: 10),
           SizedBox(
-            width: 80,
+            width: 120,
             child: Text(
-              "$title:",
+              title,
               style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.black54,
+                color: Color(0xFF64748B),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
-
           Expanded(
             child: Text(
               value?.toString() ?? "N/A",
+              textAlign: TextAlign.right,
               style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A),
+                fontSize: 13.5,
               ),
             ),
           ),
